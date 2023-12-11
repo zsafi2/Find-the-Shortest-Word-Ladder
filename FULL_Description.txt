@@ -1,0 +1,181 @@
+A word ladder is a bridge between one word and another, formed by changing one letter at a time, with the constraint that at each step the sequence of letters still forms a valid word. For example, here is a word ladder starting from the word "data" and climbing up the ladder to the word "code". Each changed letter is bolded as an illustration:
+
+|  code  |
+|    ^   |
+|  cove  |  
+|   ^    | 
+|  cave  |
+|  ^     |
+|  gave  |
+|    ^   |
+|  gate  |
+|  ^     |
+|  date  |
+|     ^  |
+|  data  |
+This word ladder has height 7. There are many other word ladders that connect these two words. For example, here is another ladder of height 5 that uses some more obscure words:
+
+|  code  |
+|   ^    |
+|  cade  |  
+|    ^   | 
+|  cate  |
+|  ^     |
+|  date  |
+|     ^  |
+|  data  |
+In fact, this ladder has the shortest height that connects data to code. Note that there might be other ladders of the same height, but none with fewer rungs than this one. Notice that the shortest a word ladder can be is 2, e.g. cove -> code. There are also pairs of words for which a word ladder cannot be formed, e.g. there is no word ladder to connect stack -> queue.
+
+In this project, you will write functions to support a program that prompts the user for two words and finds a minimum-height ladder linking the words, which uses linked lists of words to store ladders, linked lists of partially completed ladders to organize all possible solutions, and a prescribed algorithm to find the shortest word ladder.
+
+
+
+Dictionary File, Word Array, Word Struct, and a Linked List for the Word Ladder
+The provided file dictionary.txt contains the full contents of the "Official Scrabble Player's Dictionary, Second Edition." This word list has over 120,000 words, which should be more than enough for the purposes of making word ladders for small to moderate sized words. Smaller dictionaries are also provided for testing purposes: simple3.txt contains a limited number of 3-letter words, simple4.txt contains a limited number of 4-letter words, and simple5.txt contains a limited number of 5-letter words.
+
+The complete primary application is provided in main() of the starter code; however, it involves many calls to functions that still need to be written. Here are the main steps of the program:
+
+The user interactively sets the length of the starting and final words for the word ladder. This, in turn, also sets the wordSize for the full set of words to be read in from the dictionary file.
+The user also interactively inputs the dictionary file name to be used for reading words into the full array of possible words that could later make up the ladder.
+The dictionary file is opened for the first time and is scanned to count the number of words it contains that has the desired wordSize; this count is stored as numWords.
+We now know the user-specified word length (wordSize) AND the number of words in the dictionary that have the correct length (wordSize). Thus, we can now allocate array space for all of the words, open the file again, and read the words in from the file to fill the newly-allocated array. The full set of words is stored using a heap-allocated array of pointers to C-strings. That is, words is an array of pointers with size numWords, where each pointer points to a heap-allocated C-string of size wordSize+1 (to allow space for a word and the null character). See the figure below for a diagram of the words array.
+The user interactively inputs both the starting word (startWord) and the final word (finalWord). If either entered word has an incorrect size (i.e. not equal to wordSize) or the word is not found in the words array, then the user is requested to enter another word.
+With the words array filled from the dictionary and the two ends of the word ladder set, an algorithm is run to produce the minimum-height word ladder. This entails building a linked list of WordNode structs, which contain pointers to C-strings in the words array and a pointer to the next element in the linked list. Full details on the minimum-height word ladder algorithm in the next section.
+If a word ladder connecting the two words is possible, the minimum-height ladder is displayed (with the starting word on the bottom and the final word at the top of the ladder), along with the ladder height.
+Example:
+The diagram below uses a sample dictionary of only 15 words, where the word length varies from 3 to 8. If wordSize is selected to be 3, then numWords would be set to 7, since there are seven 3-letter words in the dictionary file: bug, ear, fly, tap, tar, toe, top.  Note that the seven words are heap-allocated C-strings with an extra character for '\0'. Then, startWord is chosen to be "toe" and finalWord is chosen to be "ear". The algorithm produces a linked list where the head node's myWord pointer points to the finalWord C-string in the words array, i.e. "ear". It is important to notice that the linked list node does NOT store characters for the word, nor is an additional copy of the word made; instead the linked list node simply points to an element of the words array. So...
+
+the head node points to "ear" in the words array, then following to next,
+the next node points to "tar" in the words array, then following to next,
+the next node points to "tap" in the words array, then following to next,
+the next node points to "top" in the words array, then following to next,
+the next node points to "toe" in the words array, then following to next,
+the next node points to NULL
+Thus, the linked list is the word ladder, with the finalWord pointed to by the head node and the startWord pointed to by the last node.
+
+Figure 14.5.1: Diagram of a sample word ladder - words array & ladder linked list
+
+
+The Minimum-Height Word Ladder Finding Algorithm
+Finding a word ladder is a specific instance of what is known as a shortest-path problem: a problem in which we try to find the shortest possible route from a given start to a given end point. Shortest-path problems come up in routing Internet packets, comparing gene mutations, Google Maps, and many other domains. The strategy we will use for finding the shortest path between our start and end words is called breadth-first search ("BFS"). This is a search process that gradually expands the set of paths among which we search outwards: BFS first considers all possible paths that are one step away from the starting point, then all possible paths two steps away, and so on, until a path is found connecting the start and end point. A step can be understood as one unit of measurement; depending on the problem, this could be a millisecond, a minute, a mile, a subway stop, and so on. By exploring all possible paths of a given length before incrementing to the next length, BFS guarantees that the first solution you find will be as short as possible.
+
+For word ladders, start by examining ladders that contain only words that are one “step” away from the original word; i.e., words in which only one letter has been changed. If you find your target word among these one-step-away ladders, congratulations, you’re done! If not, look for your target word in all ladders containing words that are two steps away; i.e., ladders in which two letters have been changed. Then check three letters, four, etc., until your target word is located. 
+
+We implement the breadth-first algorithm using a linked list of partially complete ladders, each of which represents a possibility to explore (i.e., each item in the list of partial ladders is examined in turn, checking to see if it contains a path to our target word). Each partial ladder is represented as a linked list of words, which means that your overall collection will be a linked list of partially complete ladders, which are themselves linked lists of words.
+
+A word ladder is a linked list of WordNode structs, which is defined as follows:
+
+typedef struct WordNode_struct {
+    char* myWord;
+    struct WordNode_struct* next;
+} WordNode;
+ 
+Here myWord is a pointer to a C-string element of the words array and next is a pointer to the next element in the list of words. 
+
+The algorithm centers on storing partially completed word ladders in a linked list of LadderNode structs, which is defined as follows:
+
+typedef struct LadderNode_struct {
+    WordNode* topWord;
+    struct LadderNode_struct* next;
+} LadderNode;
+ 
+Here topWord is a pointer to the head node of a partially completed word ladder and next is a pointer to the next element in the list of ladders. 
+
+Below is a partial pseudo-code description of the algorithm to solve the word-ladder problem (Note: some students may complain at this point that we are giving too much information and that they want to figure the problem out on their own. In that case, great! Don’t look at the pseudocode below if you want to try it on your own!)
+
+To find the shortest word ladder between words w1 and w2:
+   Create myList, an empty list of LadderNode structs
+   Create myLadder, an empty list of WordNode structs
+   Prepend w1 to the front of myLadder
+   Append myLadder to the back of myList 
+   While myList is not empty: 
+      Pop the head LadderNode off the front of myList, call it myLadder
+      For each word in the words array that is a neighbor of the topWord of myLadder:
+         If the neighbor word has not already been used in a ladder to this point:
+            If the neighbor word is w2:
+               Prepend w2 to the front of myLadder
+               Hooray! We found the shortest word ladder, so return myLadder
+            Otherwise:
+               Copy myLadder to anotherLadder
+               Prepend neighbor word to the front of anotherLadder
+               Append anotherLadder to the back of myList 
+   If no ladder was returned, then no ladder is possible
+Some of the pseudo-code corresponds almost one-to-one with actual C code. Other parts are more abstract, such as the instruction to "pop" a LadderNode from the front of MyList. Popping a node from the front of a list means that the the head node is removed from the list, such that the node that was one away from the head node is the new head node. In this case, we are interested in keeping the popped ladder for further analysis, but it is no longer connected to the linked list.
+
+Another instruction that needs more explanation is to examine each "neighbor" of a given word. A neighbor of a given word w is a word of the same length as w that differs by exactly 1 letter from w. For example, “date” and “data” are neighbors; “dog” and “bog” are neighbors; “debug” and “shrug” are NOT neighbors.
+
+Your solution is not allowed to look for neighbors by looping over the full dictionary, nor looping over the entire words array, every time; this is much too inefficient. To find all neighbors of a given word, use two nested loops: one that goes through each character index in the word, and one that loops through the letters of the alphabet from a-z, replacing the character in that index position with each of the 26 letters in turn. For example, when examining neighbors of “date”, you'd try:
+
+aate, bate, cate, ..., zate ← all possible neighbors where only the 1st letter is changed.
+date, dbte, dcte, ..., dzte ← all possible neighbors where only the 2nd letter is changed.
+...
+data, datb, datc, ..., datz ← all possible neighbors where only the 4th letter is changed.
+Note that many of the possible letter combinations along the way (aate, dbte, datz, etc.) are not valid English words. Your algorithm has access to the words array, which is built from an English dictionary, and each time you generate a word using this looping process, you should look it up in the words array to make sure that it is actually a legal English word. Only valid English words should be included in your group of neighbors. Since we will be searching the words array many times, we will take advantage of the dictionary file being in alphabetical order, which produces a words array that is also in alphabetical order, which allows an efficient process for finding words using a binary search.
+
+Another way of visualizing the search for neighboring words is to think of each letter index in the word as being a "spinner" that you can spin up and down to try all values A-Z for that letter. The diagram below tries to depict this:
+
+Figure 14.5.2: Efficient search for neighbor words
+
+
+Another subtle issue is that you should not reuse words that have been included in a previous, shorter ladder. For example, suppose that you have the partial ladder cat → cot → cog in your list. Later on, if your code is processing the ladder cat → cot → con, one neighbor of con is cog, so you might want to examine cat → cot → con → cog. But doing so is unnecessary. If there is a word ladder that begins with these four words, then there must be a shorter one that, in effect, cuts out the middleman by eliminating the unnecessary word con. As soon as you've entered a ladder in your list ending with a specific word, you've found a minimum-length path from the starting word to that end word in that ladder, so you never have to enter that end word again in any later ladder.
+
+To implement this strategy, we keep track of the set of words that have already been used in any ladder, and ignore those words if they come up again. Keeping track of which words you've used also eliminates the possibility of getting trapped in an infinite loop by building a circular ladder, such as cat → cot → cog → bog → bag → bat → cat. 
+
+The set of previously-used words is recorded in the Boolean array usedWord, which has size numWords to align with the words array by index. The elements of usedWord are all initialized to false, representing no words have been added to any ladders yet. Thus, if the algorithm seeks to add words[i] to a ladder, first check usedWord[i]; if it is false, then proceed to add words[i] to the ladder and set usedWord[i] to true; otherwise, ignore words[i] and move on. This should feel familiar, as it is a form of memoization.
+
+Lastly, whereas the pseudo-code does a nice job laying out the important structural elements of the algorithm and the underlying linked list structures, it makes no effort at complete memory management. The algorithm requires a great deal of heap-memory allocations, i.e. for each WordNode and LadderNode. The vast majority of these allocations (but not all) go out of scope once the algorithm has finished. Thus, whenever you are done investigating an incomplete partial ladder, make sure to free up all heap-memory that was allocated for it before moving on with the algorithm. Furthermore, when you have found a complete ladder, make sure to free up all remaining heap-memory that was allocated for the algorithm before returning the ladder (do NOT free the memory for the complete ladder as you need to return the ladder to be displayed to screen, etc.). Lastly, in the case where no ladder is possible, the list of LadderNode structs should be empty and all heap-memory should be free'd naturally within the algorithm.
+
+A final tip on the algorithm: it may be helpful to test your program on smaller dictionary files first to find bugs or issues related to your dictionary or to word searching. Thus, the simple#.txt files fit this bill nicely.
+
+
+
+Programming Tasks
+First, read through the code in main() to get an understanding for the primary components of the program. Keep in mind that it includes MANY calls to functions that you need to write. As you peruse main() and run across function calls, you may want to find each of the function headers above to get acquainted with them. 
+
+Then, find the following twelve function headers:
+
+Functions related to the words array:
+countWordsOfLength()
+buildWordArray()
+findWord()
+freeWords()
+Functions related to linked lists of WordNode structs, i.e. a word ladder:
+insertWordAtFront()
+getLadderHeight()
+copyLadder()
+freeLadder()
+Functions related to linked lists of LadderNode structs, i.e. a list of ladders:
+insertLadderAtBack()
+popLadderFromFront()
+freeLadderList()
+A function to perform the minimum-height word ladder finding algorithm:
+findShortestWordLadder()
+The comments in each function body of the starter code provide an explanation of what each function should accomplish, implicitly defining each parameter and returned quantity. Your task in this project is to complete the program by writing the twelve functions listed above, without modifying the struct definitions or the code in main().
+
+Whereas, there is no structured student testing requirement for this project, you are expected to test the functions on your own before relying on the autograder. This should be done by writing your own test case functions and using the main() application outputs to compare expected vs. actual results. The executable demo.exe is a fully functioning program that is provided with the starter code to help with student testing (prior to submission to autograder). As always, you need to change the permissions to allow execution as follows:
+
+>> chmod a+x demo.exe
+>> ./demo.exe
+You will submit an explanation of how you tested your code. Include samples of running the program and/or test case code that you developed for testing purposes.
+
+Lastly, you should develop a makefile with many useful targets. Here are some example targets:
+
+a target to compile the code
+a target to run the program interactively
+a target to run the program interactively under valgrind
+a target to run the program using the redirection operator to supply input values non-interactively (you will need to make a .txt file that contains preset user-inputs)
+additional targets you find useful for developing, testing, and running your program
+The makefile will not be tested as part of the autograded test cases. Instead, you will submit the makefile with your code submission to Gradescope.
+
+
+
+Run the Application
+With all functions written, tested, and passing the autograded test cases, run the program with various inputs using the full dictionary.txt to investigate the following questions (you will submit responses to these questions with your Gradescope submission):
+
+Finding very short word ladders is easy, e.g. connecting debug and debut is trivial. However, your program is so good at finding short word ladders that it takes some effort to find word pairs where the shortest word ladder is actually long. What is the longest word ladder you can find between 3-letter words? 4-letter words? 5-letter words? After some systematic attempts, your instructors were able to find (can you find word-pairs where the shortest word ladder is longer than these???)...
+a 3-letter-word-pair with shortest word ladder of height 7, 
+a 4-letter-word-pair with shortest word ladder of height 9, and 
+a 5-letter-word-pair with shortest word ladder of height 14. 
+Describe your method for finding word pairs where the shortest word ladder is relatively long. Note: in the setWords() function of the provided starter code, after 5 invalid words are inputted, the program chooses a word at random so it can proceed. Can you use this feature to your advantage?
+Based on your experience developing and running the program, briefly explain why word ladders tend to be shorter between smaller words (e.g. 3-letter word pairs) than longer words (e.g. 5-letter word pairs).
+How does the word length affect the ease of being able to connect words with a word ladder? You may find that almost any 3-letter-word-pairs can be connected. Conversely, you may find it difficult to connect any 9-letter-word-pairs. At what word size do begin to find it difficult to connect randomly chosen words (you may be surprised at how small this number is)? Explain this phenomenon based on your experience running the program.
